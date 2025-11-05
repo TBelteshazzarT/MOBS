@@ -6,8 +6,6 @@
  This script serves as a location to store project wide objects in the form of a dataclass.
  At the beginning of a script, be sure to use:
 
- .. code-block:: python
-
 from config import config
 
 """

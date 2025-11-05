@@ -167,3 +167,31 @@ class Annotator:
             print("👀 Displaying visualization...")
 
         return image
+
+def jpg_to_png(input_path, output_path=None):
+    """
+    Converts a JPG image to PNG format and saves it.
+
+    Parameters:
+        input_path (str): Path to the input JPG file.
+        output_path (str, optional): Path to save the PNG file.
+                                     If not provided, saves in the same directory
+                                     with the same base name and .png extension.
+    """
+    # Ensure the file exists
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    # Open and convert image
+    with Image.open(input_path) as img:
+        img = img.convert("RGBA")  # ensures transparency is handled correctly
+
+        # Determine output file path
+        if output_path is None:
+            base, _ = os.path.splitext(input_path)
+            output_path = f"{base}.png"
+
+        # Save as PNG
+        img.save(output_path, format="PNG")
+
+    print(f"Converted and saved: {output_path}")
