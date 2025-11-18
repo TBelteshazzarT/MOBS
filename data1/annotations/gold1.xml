@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>images</folder>
+	<filename>gold1.png</filename>
+	<path>/Users/williemartinez/PycharmProjects/PythonProject/data /images/gold1.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2880</width>
+		<height>1800</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>gold</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>1007</xmin>
+			<ymin>268</ymin>
+			<xmax>2283</xmax>
+			<ymax>1356</ymax>
+		</bndbox>
+	</object>
+</annotation>
