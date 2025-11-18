@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>images</folder>
+	<filename>iron12.png</filename>
+	<path>/Users/williemartinez/PycharmProjects/PythonProject/data /images/iron12.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2880</width>
+		<height>1800</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>iron</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>371</xmin>
+			<ymin>65</ymin>
+			<xmax>2550</xmax>
+			<ymax>1304</ymax>
+		</bndbox>
+	</object>
+</annotation>

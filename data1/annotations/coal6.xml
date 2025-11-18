@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>images</folder>
+	<filename>coal6.png</filename>
+	<path>/Users/williemartinez/PycharmProjects/PythonProject/data /images/coal6.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2880</width>
+		<height>1800</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>coal</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>523</xmin>
+			<ymin>29</ymin>
+			<xmax>2541</xmax>
+			<ymax>1335</ymax>
+		</bndbox>
+	</object>
+</annotation>

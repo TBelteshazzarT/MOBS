@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>images</folder>
+	<filename>diamond4.png</filename>
+	<path>/Users/williemartinez/PycharmProjects/PythonProject/data /images/diamond4.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2880</width>
+		<height>1800</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>diamond</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>580</xmin>
+			<ymin>259</ymin>
+			<xmax>2153</xmax>
+			<ymax>1350</ymax>
+		</bndbox>
+	</object>
+</annotation>

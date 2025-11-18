@@ -1,0 +1,26 @@
+<annotation verified="yes">
+	<folder>images</folder>
+	<filename>redstone4.png</filename>
+	<path>/Users/williemartinez/PycharmProjects/PythonProject/data /images/redstone4.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>2880</width>
+		<height>1800</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>redstone</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>635</xmin>
+			<ymin>377</ymin>
+			<xmax>2147</xmax>
+			<ymax>1329</ymax>
+		</bndbox>
+	</object>
+</annotation>
