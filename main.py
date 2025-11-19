@@ -124,8 +124,8 @@ def main():
     pipeline.plot_training_history()
 
     # Step 9: Save the final model
-    model.model.save('mobs_trained_model.h5')
-    print("💾 Model saved as 'mobs_trained_model.h5'")
+    model.model.save('mobs_trained_model.keras')
+    print("💾 Model saved as 'mobs_trained_model.keras'")
 
     # Step 10: Test prediction (optional)
     print("\n🎯 Testing prediction on a sample image...")
@@ -148,8 +148,8 @@ def main():
     print("✅ TRAINING COMPLETED SUCCESSFULLY!")
     print("=" * 50)
     print("\n📁 Your trained files:")
-    print("   - mobs_trained_model.h5 (your trained model)")
-    print("   - mobs_best_model.h5 (best model during training)")
+    print("   - mobs_trained_model.keras (your trained model)")
+    print("   - mobs_best_model.keras (best model during training)")
     print("   - mobs_training_history.png (training progress)")
     print("\n🎉 Great job! You've trained a Minecraft ore detection model!")
 

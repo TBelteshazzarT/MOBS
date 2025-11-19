@@ -99,25 +99,53 @@ class MobsDataset:
         print(f"✅ Loaded {len(image_paths)} images with annotations")
 
         def process_path(img_path, boxes, labels):
-            """Process a single image and its annotations"""
+            """Process a single image for multi-object detection"""
             # Load and preprocess image
             image = tf.io.read_file(img_path)
-            image = tf.image.decode_image(image, channels=3)
+            image = tf.image.decode_image(image, channels=3, expand_animations=False)
+            image.set_shape([None, None, 3])
             image = tf.image.resize(image, self.img_size)
-            image = tf.cast(image, tf.float32) / 255.0  # Normalize to [0,1]
+            image = tf.cast(image, tf.float32) / 255.0
 
-            # Convert to ragged tensors for variable number of objects
-            boxes = tf.ragged.constant(boxes)
-            labels = tf.ragged.constant(labels)
+            # boxes and labels are already tensors from the dataset
+            # Just ensure they have the correct dtype
+            boxes = tf.cast(boxes, tf.float32)
+            labels = tf.cast(labels, tf.int32)
 
-            return image, {
-                'boxes': boxes,
-                'labels': labels
-            }
+            # For multi-object: create one-hot encoded labels and pad boxes
+            max_objects = 5  # Maximum number of objects we can detect
 
-        # Create TensorFlow Dataset
-        dataset = tf.data.Dataset.from_tensor_slices((image_paths, all_boxes, all_labels))
+            # Pad boxes to max_objects
+            num_boxes = tf.shape(boxes)[0]
+            boxes_padded = tf.pad(boxes,
+                                  [[0, max_objects - num_boxes], [0, 0]],
+                                  constant_values=0.0)
+
+            # Create one-hot encoded labels for all objects
+            labels_one_hot = tf.one_hot(labels, depth=self.num_classes)
+            labels_padded = tf.pad(labels_one_hot,
+                                   [[0, max_objects - num_boxes], [0, 0]],
+                                   constant_values=0.0)
+
+            # For classification output, use the presence of each class (multi-hot encoding)
+            class_presence = tf.reduce_max(labels_one_hot, axis=0)  # [0,1,1,0,1] for classes present
+
+            # Return format: (input, (classification_target, regression_target))
+            # classification_target: multi-hot encoded [batch_size, num_classes]
+            # regression_target: padded boxes [batch_size, max_objects, 4]
+            return image, (class_presence, boxes_padded)
+
+        # Create TensorFlow Dataset - convert to tensors first
+        dataset = tf.data.Dataset.from_tensor_slices((
+            image_paths,
+            [tf.constant(box, dtype=tf.float32) for box in all_boxes],
+            [tf.constant(label, dtype=tf.int32) for label in all_labels]
+        ))
+
+        # Process the data
         dataset = dataset.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
+
+        # Batch the dataset
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
@@ -125,17 +153,34 @@ class MobsDataset:
 
     def train_val_split(self, validation_split=0.2):
         """Split dataset into training and validation sets"""
+        # Load the full dataset first
         full_dataset = self.load_dataset()
 
-        # Calculate split sizes
-        total_images = len([f for f in os.listdir(self.images_dir)
-                            if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
-        train_size = int((1 - validation_split) * total_images)
+        # Get the actual size of the dataset (number of batches)
+        dataset_size = 0
+        for _ in full_dataset:
+            dataset_size += 1
 
+        if dataset_size == 0:
+            print("❌ No data available in dataset!")
+            return None, None
+
+        train_size = int((1 - validation_split) * dataset_size)
+
+        # Ensure we have at least 1 batch for validation
+        if train_size >= dataset_size:
+            train_size = dataset_size - 1
+
+        if train_size <= 0:
+            print("❌ Not enough data for training and validation split!")
+            return None, None
+
+        print(f"📊 Training: {train_size} batches, Validation: {dataset_size - train_size} batches")
+
+        # Split the dataset
         train_dataset = full_dataset.take(train_size)
         val_dataset = full_dataset.skip(train_size)
 
-        print(f"📊 Training: {train_size} images, Validation: {total_images - train_size} images")
         return train_dataset, val_dataset
 
 
@@ -151,16 +196,16 @@ class MobsModel:
         self.model = None
 
     def build_simple_cnn(self):
-        """Build a simple CNN model for object detection - great for learning!"""
+        """Build a simple CNN model that can handle multiple objects per image"""
         # Input layer
         inputs = keras.Input(shape=(*self.img_size, 3))
 
-        # Feature extraction
-        x = layers.Conv2D(32, 3, activation='relu')(inputs)
+        # Feature extraction backbone
+        x = layers.Conv2D(32, 3, activation='relu', padding='same')(inputs)
         x = layers.MaxPooling2D()(x)
-        x = layers.Conv2D(64, 3, activation='relu')(x)
+        x = layers.Conv2D(64, 3, activation='relu', padding='same')(x)
         x = layers.MaxPooling2D()(x)
-        x = layers.Conv2D(128, 3, activation='relu')(x)
+        x = layers.Conv2D(128, 3, activation='relu', padding='same')(x)
         x = layers.MaxPooling2D()(x)
 
         # Global features
@@ -170,7 +215,10 @@ class MobsModel:
 
         # Output heads
         classification_output = layers.Dense(self.num_classes, activation='softmax', name='classification')(x)
-        regression_output = layers.Dense(4, activation='sigmoid', name='regression')(x)  # 4 bbox coordinates
+
+        # Regression output - use the same name throughout
+        regression_output = layers.Dense(4 * 5, activation='sigmoid')(x)
+        regression_output = layers.Reshape((5, 4), name='regression')(regression_output)  # Final name is 'regression'
 
         self.model = keras.Model(inputs=inputs, outputs=[classification_output, regression_output])
         return self.model
@@ -211,7 +259,7 @@ class MobsModel:
         self.model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
             loss={
-                'classification': 'sparse_categorical_crossentropy',
+                'classification': 'binary_crossentropy',  # Changed for multi-hot encoding
                 'regression': 'mse'
             },
             loss_weights={
@@ -241,7 +289,7 @@ class MobsTrainingPipeline:
         callbacks = [
             # Save best model
             keras.callbacks.ModelCheckpoint(
-                filepath='mobs_best_model.h5',
+                filepath='mobs_best_model.keras',
                 monitor='val_loss',
                 save_best_only=True,
                 verbose=1
@@ -289,14 +337,51 @@ class MobsTrainingPipeline:
     def evaluate(self):
         """Evaluate the model on validation data"""
         _, val_ds = self.dataset.train_val_split()
-        results = self.model.model.evaluate(val_ds, verbose=0)
+
+        try:
+            # Try to get results as dictionary (more reliable)
+            results = self.model.model.evaluate(val_ds, verbose=0, return_dict=True)
+        except:
+            # Fallback to list format
+            results = self.model.model.evaluate(val_ds, verbose=0)
 
         print("📊 Evaluation Results:")
-        print(f"   Total Loss: {results[0]:.4f}")
-        print(f"   Classification Loss: {results[1]:.4f}")
-        print(f"   Regression Loss: {results[2]:.4f}")
-        print(f"   Classification Accuracy: {results[3]:.4f}")
-        print(f"   Regression MSE: {results[4]:.4f}")
+
+        def format_value(value):
+            """Safely format numeric values, handle strings"""
+            if isinstance(value, (int, float)):
+                return f"{value:.4f}"
+            else:
+                return str(value)
+
+        if isinstance(results, dict):
+            # Dictionary format
+            total_loss = results.get('loss', 'N/A')
+            classification_loss = results.get('classification_loss', results.get('classification_loss', 'N/A'))
+            regression_loss = results.get('regression_loss', results.get('regression_loss', 'N/A'))
+            classification_accuracy = results.get('classification_accuracy',
+                                                  results.get('classification_accuracy', 'N/A'))
+            regression_mse = results.get('regression_mse', results.get('regression_mse', 'N/A'))
+
+            print(f"   Total Loss: {format_value(total_loss)}")
+            print(f"   Classification Loss: {format_value(classification_loss)}")
+            print(f"   Classification Accuracy: {format_value(classification_accuracy)}")
+            print(f"   Regression Loss: {format_value(regression_loss)}")
+            print(f"   Regression MSE: {format_value(regression_mse)}")
+        else:
+            # List format
+            if len(results) >= 5:
+                print(f"   Total Loss: {format_value(results[0])}")
+                print(f"   Classification Loss: {format_value(results[1])}")
+                print(f"   Regression Loss: {format_value(results[2])}")
+                print(f"   Classification Accuracy: {format_value(results[3])}")
+                print(f"   Regression MSE: {format_value(results[4])}")
+            elif len(results) >= 1:
+                print(f"   Total Loss: {format_value(results[0])}")
+                if len(results) > 1:
+                    print(f"   Additional metrics: {[format_value(x) for x in results[1:]]}")
+            else:
+                print("   No evaluation metrics available")
 
         return results
 
